@@ -41,7 +41,7 @@ QAM |    0 | stdlib
 QAR1| 6…14 | `qiomrq`
 QAR2| 7…21 | `aio-pika`
 
-### 'Mid' prifile:
+### 'Mid' profile:
 
 &hellip;&times; 100 msg (100k msg total)
 
@@ -92,11 +92,10 @@ Type| Time,s  | Note
 QSM |       0 | stdlib
 QSD |       0 | `queuelib`
 QSD2|   45…45 | `persistqueue`, bulk read
-QSR |         | `pika`
-QAM |         | stdlib
-QAR1|         | `qiomrq`
-QAR2|         | `aio-pika`
-
+QSR | &infin; | `pika`
+QAM |     1…1 | stdlib
+QAR1| 352…394 | `qiomrq`
+QAR2| 360…418 | `aio-pika`
 
 ## Create queues
 
