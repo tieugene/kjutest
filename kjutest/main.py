@@ -23,7 +23,7 @@ from qar1 import QAR1c
 from qar2 import QAR2c
 
 # x. const
-if platform.system() == 'Darwin':
+if platform.system() == 'Darwin':  # And Linux too
     class Logger:
         @staticmethod
         # noinspection

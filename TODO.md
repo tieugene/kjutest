@@ -1,7 +1,5 @@
 # Kju.ToDo
 
-- [x] Q_COUNT = 10
-- [x] fire `persistqueue`
 - [ ] FIXME: no put() response
    Solution: exchange, bind
 - [ ] Chk pkgs sent (B2n put() and get())
