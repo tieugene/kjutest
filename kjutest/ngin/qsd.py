@@ -6,7 +6,7 @@ from typing import Iterator
 
 import queuelib
 
-from q import QS, QSc
+from kjutest.ngin.q import QS, QSc
 
 
 class _QSD(QS):
@@ -47,5 +47,6 @@ class _QSD(QS):
 
 class QSDc(QSc):
     """Queue Sync Disk-based Container."""
+    a: bool = False
     title: str = "Queue Sync (Disk (queuelib))"
     _child_cls = _QSD

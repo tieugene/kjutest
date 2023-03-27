@@ -6,7 +6,7 @@ from typing import Optional
 import aio_pika
 import aio_pika.abc
 # 3. local
-from q import QA, QAc
+from kjutest.ngin.q import QA, QAc
 # x. const
 GET_TIMEOUT = 1
 
@@ -61,6 +61,7 @@ class _QAR2(QA):
 
 class QAR2c(QAc):
     """RabbitMQ Async Queue Container."""
+    a: bool = True
     title: str = "Queue Async (RabbitMQ (aio-pika))"
     _child_cls = _QAR2
     __host: str

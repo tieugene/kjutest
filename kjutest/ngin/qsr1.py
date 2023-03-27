@@ -6,7 +6,7 @@ from typing import Optional
 # 2. 3rd
 import pika
 # 3. local
-from q import QS, QSc
+from kjutest.ngin.q import QS, QSc
 
 
 # == Sync ==
@@ -61,6 +61,7 @@ class _QSR(QS):
 
 class QSRc(QSc):
     """Queue Sync RabbitMQ Container."""
+    a: bool = False
     title: str = "Queue Sync (RabbitMQ (pika))"
     _child_cls = _QSR
     __host: str

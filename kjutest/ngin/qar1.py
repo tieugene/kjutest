@@ -6,7 +6,7 @@ from typing import Optional
 import aiormq
 import aiormq.abc
 # 3. local
-from q import QA, QAc
+from kjutest.ngin.q import QA, QAc
 
 
 class _QAR1(QA):
@@ -47,6 +47,7 @@ class _QAR1(QA):
 
 class QAR1c(QAc):
     """Queue Async RabbitMQ (aiormq) Container."""
+    a: bool = True
     title: str = "Queue Async (RabbitMQ (aiormq))"
     _child_cls = _QAR1
     __host: str

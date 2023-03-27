@@ -5,7 +5,7 @@ Powered by [stdlib](https://docs.python.org/3/library/asyncio-queue.html)
 from typing import Optional
 import asyncio
 # 3. local
-from q import QAc, QA
+from kjutest.ngin.q import QAc, QA
 # x. const
 GET_TIMEOUT = 1  # sec
 
@@ -48,5 +48,6 @@ class _QAM(QA):
 
 class QAMc(QAc):
     """Memory Async Queue Container."""
+    a: bool = True
     title: str = "Queue Async (memory)"
     _child_cls = _QAM

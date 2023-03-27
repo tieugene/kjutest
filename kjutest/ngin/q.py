@@ -36,6 +36,7 @@ class Qc:
     """Queue Container base class.
      Provides Qs uniqueness.
      """
+    a: bool  # True if async
     title: str = "Queue (base)"
     _child_cls: Type[Q]
     _store: Dict[int, Q]
