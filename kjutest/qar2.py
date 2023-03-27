@@ -27,6 +27,7 @@ class _QAR2(QA):
         return q.declaration_result.message_count
 
     async def put(self, data: bytes):
+        # pamqp.commands.Basic.Ack
         await self._master.chan.default_exchange.publish(
             message=aio_pika.Message(
                 body=data,

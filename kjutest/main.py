@@ -16,8 +16,7 @@ import psutil
 from const import Q_COUNT, W_COUNT, MSG_COUNT, R_COUNT, MSG
 from q import QSc, QS, QAc, Qc
 from qsm import QSMC
-from qsd1 import QSD1c
-from qsd2 import QSD2c
+from qsd import QSDc
 from qsr1 import QSRc
 from qam import QAMc
 from qar1 import QAR1c
@@ -125,23 +124,18 @@ async def atest(aqc: QAc, bulk_tx=True, bulk_rx=True):
 def smain():
     """Sync."""
     stest(QSMC())
-    stest(QSD1c())
-    stest(QSD2c())
+    stest(QSDc())
     stest(QSRc())  # remote: 'hostname'
 
 
-def amain():
+async def amain():
     """Async entry point."""
-
-    async def __inner():
-        await atest(QAMc())
-        await atest(QAR1c())  # remote: 'amqp://hostname'
-        await atest(QAR2c())  # remote: as above
-
-    asyncio.run(__inner())
+    await atest(QAMc())
+    await atest(QAR1c())  # remote: 'amqp://hostname'
+    await atest(QAR2c())  # remote: as above
 
 
 if __name__ == '__main__':
     LOGGER.setLevel(logging.DEBUG)
     smain()
-    amain()
+    asyncio.run(amain())

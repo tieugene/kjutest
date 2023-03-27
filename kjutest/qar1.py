@@ -24,6 +24,8 @@ class _QAR1(QA):
         return ret.message_count
 
     async def put(self, data: bytes):
+        """:note: unknown sending result."""
+        # pamqp.commands.Basic.Ack[.delivery_tage==1 always]
         await self._master.chan.basic_publish(
             body=data,
             routing_key=self._q_name,

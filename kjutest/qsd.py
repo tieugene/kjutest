@@ -9,11 +9,11 @@ import queuelib
 from q import QS, QSc
 
 
-class _QSD1(QS):
-    """Disk-based #1 Sync Queue."""
+class _QSD(QS):
+    """Queue Sync Disk-based ."""
     __q: queuelib.FifoDiskQueue
 
-    def __init__(self, master: 'QSD1c', __id: int):
+    def __init__(self, master: 'QSDc', __id: int):
         super().__init__(master, __id)
         self.__q = queuelib.FifoDiskQueue(f"_d1sd/{__id:04d}")
 
@@ -45,7 +45,7 @@ class _QSD1(QS):
         self.__q.close()
 
 
-class QSD1c(QSc):
-    """Disk-based #1 Sync Queue Container."""
+class QSDc(QSc):
+    """Queue Sync Disk-based Container."""
     title: str = "Queue Sync (Disk (queuelib))"
-    _child_cls = _QSD1
+    _child_cls = _QSD

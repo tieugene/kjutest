@@ -1,5 +1,19 @@
 # Notes
 
+## So:
+
+Speed of pkgs r/w, pkgs/s (localhost):
+
+S/A| Engine         | Write | Read
+---|----------------|-----:|------:
+ S | stdlib         | &infin; | &infin;
+ A | stdlib         | 50k…1M | 1M…&infin;
+ S | `queuelib`     | 100k+ | 200k+
+ S | `persistqueue` | 2000 | ?
+ S | `pika`         | 250 | 2000
+ A | `qiomrq`       | 300…1000 | 1000…2500
+ A | `aio-pika`     | 250…1000 | 200…fail
+
 ## Resume:
 - stdlib: exactly good, but not persistent
 - ~~`persistqueue`: slow write, buggy~~, handy
@@ -101,7 +115,7 @@ QAR2| 360…418 | `aio-pika`
 
 ```py
 import pika
-conn = pika.BlockingConnection(pika.ConnectionParameters(host='<host>'))
+conn = pika.BlockingConnection(pika.ConnectionParameters())  # ([host='<host>']))
 chan = conn.channel()
 [chan.queue_declare(queue=f"{i:04d}", durable=True) for i in range(100)]
 chan.close()

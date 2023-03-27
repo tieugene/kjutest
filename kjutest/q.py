@@ -28,7 +28,8 @@ class Q:
 
     @property
     def _q_name(self):
-        return f"{self._id:04d}"
+        # return f"{self._id:04d}"
+        return str(self._id)  # simplified for 10 queues
 
 
 class Qc:

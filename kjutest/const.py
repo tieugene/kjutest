@@ -1,5 +1,5 @@
-W_COUNT = 1000  # prod: 1000
-Q_COUNT = 100   # prod: 100
+W_COUNT = 10  # prod: 1000
+Q_COUNT = 10   # prod: 100
 MSG_COUNT = 10  # prod: 1000
 R_COUNT = Q_COUNT
 MSG_LEN = 128
