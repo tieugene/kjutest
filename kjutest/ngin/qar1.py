@@ -37,9 +37,13 @@ class _QAR1(QA):
         if rsp := await self._master.chan.basic_get(self._q_name, no_ack=True):
             return rsp.body
 
-    async def get_all(self, count: int = 0):
+    async def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         while await self.get():
-            ...
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     async def close(self):
         ...

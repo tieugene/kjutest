@@ -29,9 +29,13 @@ class _QSD(QS):
     def get(self, wait: bool = True) -> bytes:
         return self.__q.pop()
 
-    def get_all(self, count: int = 0):
+    def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         while self.__q.pop():
-            ...
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     def __iter__(self) -> Iterator:
         return self

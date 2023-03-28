@@ -32,12 +32,16 @@ class _QSM(QS):
         except queue.Empty:
             return None
 
-    def get_all(self, count: int = 0):
+    def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         try:
             while self.__q.get(block=False):
-                ...
+                __counter += 1
+                if count and __counter == count:
+                    break
+            return __counter
         except queue.Empty:
-            return
+            return __counter
 
     def __iter__(self) -> Iterator:
         return self

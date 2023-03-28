@@ -37,10 +37,13 @@ class _QAM(QA):
             except asyncio.QueueEmpty:
                 return None
 
-    async def get_all(self, count: int = 0):
-        ret = True
-        while ret:
-            ret = await self.get(False)
+    async def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
+        while await self.get(False):
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     async def close(self):
         ...

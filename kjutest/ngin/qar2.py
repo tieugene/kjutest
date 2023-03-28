@@ -41,9 +41,13 @@ class _QAR2(QA):
         if msg:
             return msg.body
 
-    async def get_all(self, count: int = 0):
+    async def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         while await self.get():
-            ...
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     async def close(self):
         ...

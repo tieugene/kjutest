@@ -41,9 +41,13 @@ class _QSR(QS):
         if method:  # not None?
             return body
 
-    def get_all(self, count: int = 0):
+    def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         while self.get():
-            ...
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     def close(self):
         ...
