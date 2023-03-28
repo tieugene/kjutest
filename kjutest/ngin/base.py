@@ -72,7 +72,7 @@ class QS(Q, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_all(self, count: int = 0):
+    def get_all(self, count: int = 0) -> int:
         """Clean query."""
         raise NotImplementedError()
 
@@ -136,7 +136,7 @@ class QA(Q, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_all(self, count: int = 0):
+    async def get_all(self, count: int = 0) -> int:
         """Get all message."""
         raise NotImplementedError()
 

@@ -72,8 +72,6 @@ def stest(sqc: QSc, args: argparse.Namespace):
         r_list: List[QS] = [sqc.q(i) for i in range(args.queues)]  # - readers
         for r in r_list:
             r.get_all(args.packages)
-            # for _ in r:
-            #    ...
         __sub_title(2)
     # x. the end
     sqc.close()
@@ -117,21 +115,7 @@ async def atest(aqc: QAc, args: argparse.Namespace, bulk_tx=True):
     await aqc.close()
 
 
-# == entry points ==
-def smain():
-    """Sync."""
-    stest(QSMc())
-    stest(QSDc())
-    stest(QSRc())  # remote: 'hostname'
-
-
-async def amain():
-    """Async entry point."""
-    await atest(QAMc())
-    await atest(QAR1c())  # remote: 'amqp://hostname'
-    await atest(QAR2c())  # remote: as above
-
-
+# == entry point ==
 def main():
     parser = mk_args_parser(tuple(NGINS.keys()))
     args = parser.parse_args(sys.argv[1:])
@@ -155,8 +139,6 @@ def main():
         else:
             stest(q(), args)
     loop.close()
-    # smain()
-    # asyncio.run(amain())
 
 
 if __name__ == '__main__':
