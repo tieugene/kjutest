@@ -1,6 +1,7 @@
 """Queue Sync RabbitMQ.
 Powered by [pika](https://pika.readthedocs.io/en/stable/index.html)
 """
+import logging
 # 1. std
 from typing import Optional
 # 2. 3rd
@@ -74,6 +75,8 @@ class QSRc(QSc):
 
     def open(self, count: int):
         super().open(count)
+        # logging.getLogger("pika").setLevel(logging.WARNING)
+        logging.getLogger("pika").propagate = False
         self.__conn = pika.BlockingConnection(pika.ConnectionParameters(host=self.__host))
         self.chan = self.__conn.channel()
         self.chan.confirm_delivery()  # publish confirm
