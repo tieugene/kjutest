@@ -6,7 +6,7 @@ from typing import Optional
 # 2. 3rd
 import pika
 # 3. local
-from kjutest.ngin.q import QS, QSc
+from kjutest.ngin.base import QS, QSc
 
 
 # == Sync ==

@@ -4,7 +4,7 @@ Powered by [stdlib](https://docs.python.org/3/library/queue.html)
 from typing import Optional, Iterator
 import queue
 
-from kjutest.ngin.q import QS, QSc
+from kjutest.ngin.base import QS, QSc
 
 
 class _QSM(QS):

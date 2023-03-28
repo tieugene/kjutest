@@ -6,7 +6,7 @@ from typing import Iterator
 
 import queuelib
 
-from kjutest.ngin.q import QS, QSc
+from kjutest.ngin.base import QS, QSc
 
 
 class _QSD(QS):

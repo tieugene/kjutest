@@ -6,7 +6,7 @@ from typing import Optional
 import aio_pika
 import aio_pika.abc
 # 3. local
-from kjutest.ngin.q import QA, QAc
+from kjutest.ngin.base import QA, QAc
 # x. const
 GET_TIMEOUT = 1
 

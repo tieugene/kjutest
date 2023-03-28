@@ -6,7 +6,7 @@ from typing import Optional
 import aiormq
 import aiormq.abc
 # 3. local
-from kjutest.ngin.q import QA, QAc
+from kjutest.ngin.base import QA, QAc
 
 
 class _QAR1(QA):

@@ -31,7 +31,8 @@ def mk_args_parser(ngin_keys: Tuple[str]) -> argparse.ArgumentParser:
     parser.add_argument('-r', '--rx', action='store_true', help="Test package receiving (get())")
     parser.add_argument('-q', '--queues', type=int, default=DEFAULT_Q, help="Queues number")
     parser.add_argument('-w', '--writers', type=int, default=0, help="Writers number (0=queues)")
-    parser.add_argument('-p', '--packages', type=int, default=0, help="Packages number (0=all)")
+    parser.add_argument('-p', '--packages', type=int, default=0,
+                        help="Packages number (default: 1 for put, all for get)")
     parser.add_argument('-s', '--size', type=int, default=DEFAULT_S, help="Packages size (1..256)")
     parser.add_argument('ngin', choices=ngin_keys, nargs='+', help="Engins to use")  # metavar='ngin',
     # parser.add_argument('host', type=str, help="POS to connect")
