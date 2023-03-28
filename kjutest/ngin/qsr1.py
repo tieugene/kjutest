@@ -1,12 +1,13 @@
 """Queue Sync RabbitMQ.
 Powered by [pika](https://pika.readthedocs.io/en/stable/index.html)
 """
+import logging
 # 1. std
 from typing import Optional
 # 2. 3rd
 import pika
 # 3. local
-from q import QS, QSc
+from kjutest.ngin.base import QS, QSc
 
 
 # == Sync ==
@@ -40,9 +41,13 @@ class _QSR(QS):
         if method:  # not None?
             return body
 
-    def get_all(self):
+    def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         while self.get():
-            ...
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     def close(self):
         ...
@@ -61,6 +66,7 @@ class _QSR(QS):
 
 class QSRc(QSc):
     """Queue Sync RabbitMQ Container."""
+    a: bool = False
     title: str = "Queue Sync (RabbitMQ (pika))"
     _child_cls = _QSR
     __host: str
@@ -73,6 +79,8 @@ class QSRc(QSc):
 
     def open(self, count: int):
         super().open(count)
+        # logging.getLogger("pika").setLevel(logging.WARNING)
+        logging.getLogger("pika").propagate = False
         self.__conn = pika.BlockingConnection(pika.ConnectionParameters(host=self.__host))
         self.chan = self.__conn.channel()
         self.chan.confirm_delivery()  # publish confirm

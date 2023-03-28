@@ -4,7 +4,7 @@ Powered by [stdlib](https://docs.python.org/3/library/queue.html)
 from typing import Optional, Iterator
 import queue
 
-from q import QS, QSc
+from kjutest.ngin.base import QS, QSc
 
 
 class _QSM(QS):
@@ -13,7 +13,7 @@ class _QSM(QS):
     """
     __q: queue.SimpleQueue
 
-    def __init__(self, master: 'QSMC', __id: int):
+    def __init__(self, master: 'QSMc', __id: int):
         super().__init__(master, __id)
         self.__q = queue.SimpleQueue()
 
@@ -32,12 +32,16 @@ class _QSM(QS):
         except queue.Empty:
             return None
 
-    def get_all(self):
+    def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         try:
             while self.__q.get(block=False):
-                ...
+                __counter += 1
+                if count and __counter == count:
+                    break
+            return __counter
         except queue.Empty:
-            return
+            return __counter
 
     def __iter__(self) -> Iterator:
         return self
@@ -51,7 +55,8 @@ class _QSM(QS):
         ...
 
 
-class QSMC(QSc):
+class QSMc(QSc):
     """Memory Sync Queue Container."""
+    a: bool = False
     title: str = "Queue Sync (Memory)"
     _child_cls = _QSM

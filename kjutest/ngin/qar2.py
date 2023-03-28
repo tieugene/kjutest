@@ -6,7 +6,7 @@ from typing import Optional
 import aio_pika
 import aio_pika.abc
 # 3. local
-from q import QA, QAc
+from kjutest.ngin.base import QA, QAc
 # x. const
 GET_TIMEOUT = 1
 
@@ -41,9 +41,13 @@ class _QAR2(QA):
         if msg:
             return msg.body
 
-    async def get_all(self):
+    async def get_all(self, count: int = 0) -> int:
+        __counter: int = 0
         while await self.get():
-            ...
+            __counter += 1
+            if count and __counter == count:
+                break
+        return __counter
 
     async def close(self):
         ...
@@ -61,6 +65,7 @@ class _QAR2(QA):
 
 class QAR2c(QAc):
     """RabbitMQ Async Queue Container."""
+    a: bool = True
     title: str = "Queue Async (RabbitMQ (aio-pika))"
     _child_cls = _QAR2
     __host: str

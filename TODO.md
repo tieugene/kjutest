@@ -1,14 +1,8 @@
 # Kju.ToDo
 
-- [ ] FIXME: no put() response
-   Solution: exchange, bind
+- [ ] FIXME: RQ: no put() response (Solution: exchange, bind)
 - [ ] Chk pkgs sent (B2n put() and get())
-- [ ] logging
 - [ ] Mem usage on-the-fly (stderr); timer/event
-- [ ] CLI:
-  - Tx/Rx
-  - Num: queues, writers, readers, pkgs, pkg size
-  - engine
 - [ ] queues maintain (CRUDL)
 
 ## RxQ:
@@ -24,4 +18,4 @@
 - [ ] automation:
   - [ ] iterator (`__iter__`/`__next__`)
   - [ ] context (`__enter__`/`__exit__`)
-- [ ] QADx
+- [ ] QAD[c]

@@ -4,40 +4,39 @@
 - RabbitMQ-/disk-/memory-based.
 - K(10) queues × L(10..1000) writers × M(10) readers/writers × N(1...1000) messages (128 bytes)
 """
-from typing import List, Tuple
+import argparse
+import sys
+from dataclasses import dataclass
+from typing import List, Tuple, Union, Dict
 import time
-import platform
 import logging
 import asyncio
 # 2. 3rd
 import psutil
 # 3. local
 # from . import ...  # not works for main.py
-from const import Q_COUNT, W_COUNT, MSG_COUNT, R_COUNT, MSG
-from q import QSc, QS, QAc, Qc
-from qsm import QSMC
-from qsd import QSDc
-from qsr1 import QSRc
-from qam import QAMc
-from qar1 import QAR1c
-from qar2 import QAR2c
-
+from kjutest.cli import mk_args_parser
+from kjutest.ngin.base import QS, Qc, QSc, QAc
+from kjutest.ngin.qsm import QSMc
+from kjutest.ngin.qsd import QSDc
+from kjutest.ngin.qsr1 import QSRc
+from kjutest.ngin.qam import QAMc
+from kjutest.ngin.qar1 import QAR1c
+from kjutest.ngin.qar2 import QAR2c
 # x. const
-if platform.system() == 'Darwin':  # And Linux too
-    class Logger:
-        @staticmethod
-        # noinspection
-        def setLevel(_: int):  # pylint: disable=C0103   # noinspection PyPep8Naming (N802)
-            ...
-
-        @staticmethod
-        def info(s: str):
-            print(s)
-
-
-    LOGGER = Logger()
-else:
-    LOGGER = logging.getLogger(__name__)
+NGINS: Dict[str, Union[Qc, Tuple]] = {
+    'sm': QSMc,
+    'am': QAMc,
+    'sd': QSDc,
+    'sr': QSRc,
+    'ar1': QAR1c,
+    'ar2': QAR2c,
+    'm': (QSMc, QAMc),  # memory
+    'r': (QSRc, QAR1c, QAR2c),  # rebbit
+    's': (QSMc, QSDc, QSRc),  # sync
+    'a': (QAMc, QAR1c, QAR2c),  # async
+    '*': (QSMc, QSDc, QSRc, QAMc, QAR1c, QAR2c)  # all
+}
 
 
 def _mem_used() -> int:
@@ -45,97 +44,102 @@ def _mem_used() -> int:
     return round(psutil.Process().memory_info().rss / (1 << 20))
 
 
-def _title(qc: Qc):
-    LOGGER.info(f"== {qc.title} {W_COUNT} w @ {Q_COUNT} q × {MSG_COUNT} m ==")
+def _title(qc: Qc, args: argparse.Namespace):
+    logging.info(f"== {qc.title} {args.writers or args.queues} w @ {args.queues} q × {args.packages} m ==")
 
 
 # == Sync ==
-def stest(sqc: QSc):
-    """Sync."""
-    _title(sqc)
-    sqc.open(Q_COUNT)
+def stest(sqc: QSc, args: argparse.Namespace):
+    """Sync test of the engine."""
+    def __sub_title(__no: int):
+        __m_count = [sqc.q(__i).count() for __i in range(args.queues)]
+        __s_count = sum(__m_count)
+        logging.info(f"{__no}: m={_mem_used()}, t={round(time.time() - t0, 1)}, msgs={__s_count}")
+
+    _title(sqc, args)
+    msg_sample = b'\x00' * args.size
+    sqc.open(args.queues)
     t0 = time.time()
-    # 0. create writers and readers
-    w_list: List[QS] = [sqc.q(i % Q_COUNT) for i in range(W_COUNT)]  # - writers
-    r_list: List[QS] = [sqc.q(i % Q_COUNT) for i in range(R_COUNT)]  # - readers
-    LOGGER.info(f"1: m={_mem_used()}, t={round(time.time() - t0, 2)}, Wrtrs: {len(w_list)}, Rdrs: {len(r_list)}")
-    # 1. put
-    for w in w_list:
-        for _ in range(MSG_COUNT):
-            w.put(MSG)
-    m_count = [sqc.q(i).count() for i in range(Q_COUNT)]
-    s_count = sum(m_count)
-    LOGGER.info(f"2: m={_mem_used()}, t={round(time.time() - t0, 2)}, msgs={s_count}")
-    # if s_count:
-    #    print("Msgs: {m_count}")
-    # 2. get
-    for r in r_list:
-        r.get_all()
-        # for _ in r:
-        #    ...
+    __sub_title(0)
+    if args.tx:  # 1. put
+        w_list: List[QS] = [sqc.q(i % args.queues) for i in range(args.writers or args.queues)]  # - writers
+        # 1. put
+        for w in w_list:
+            for _ in range(args.packages or 1):
+                w.put(msg_sample)
+        __sub_title(1)
+    if args.rx:  # 2. get
+        r_list: List[QS] = [sqc.q(i) for i in range(args.queues)]  # - readers
+        for r in r_list:
+            r.get_all(args.packages)
+        __sub_title(2)
     # x. the end
-    m_count = [sqc.q(i).count() for i in range(Q_COUNT)]
-    s_count = sum(m_count)
-    LOGGER.info(f"3: m={_mem_used()}, t={round(time.time() - t0, 2)}, msgs={s_count}")
-    if s_count:
-        print(f"Msgs: {m_count}")
     sqc.close()
 
 
 # == async ==
-async def atest(aqc: QAc, bulk_tx=True, bulk_rx=True):
-    """Async."""
+async def atest(aqc: QAc, args: argparse.Namespace, bulk_tx=True):
+    """Async.
+    :todo: bulk_rx=True
+    """
 
     async def __counters() -> Tuple[int]:
-        __qs = await asyncio.gather(*[aqc.q(i) for i in range(Q_COUNT)])
+        __qs = await asyncio.gather(*[aqc.q(i) for i in range(args.queues)])
         __count = await asyncio.gather(*[__q.count() for __q in __qs])
         return tuple(map(int, __count))
 
-    _title(aqc)
-    await aqc.open(Q_COUNT)
+    async def __sub_title(__no: int):
+        __m_count = await __counters()
+        __s_count = sum(__m_count)
+        logging.info(f"{__no}: m={_mem_used()}, t={round(time.time() - t0, 1)}, msgs={__s_count}")
+
+    _title(aqc, args)
+    msg_sample = b'\x00' * args.size
+    await aqc.open(args.queues)
     t0 = time.time()
-    # 0. create writers and readers
-    w_list = await asyncio.gather(*[aqc.q(i % Q_COUNT) for i in range(W_COUNT)])  # - writers
-    r_list = await asyncio.gather(*[aqc.q(i % Q_COUNT) for i in range(R_COUNT)])  # - readers
-    LOGGER.info(f"1: m={_mem_used()}, t={round(time.time() - t0, 2)}, Wrtrs: {len(w_list)}, Rdrs: {len(r_list)}")
-    # 1. put (MSG_COUNT times all the writers)
-    for _ in range(MSG_COUNT):
-        if bulk_tx:
-            await asyncio.gather(*[w.put(MSG) for w in w_list])
-        else:
-            for w in w_list:
-                await w.put(MSG)
-    # RAW err
-    m_count = await __counters()
-    s_count = sum(m_count)
-    LOGGER.info(f"2: m={_mem_used()}, t={round(time.time() - t0, 2)}, msgs={s_count}")
-    # 2. get
-    await asyncio.gather(*[r.get_all() for r in r_list])
+    await __sub_title(0)
+    if args.tx:  # 1. put (MSG_COUNT times all the writers)
+        w_list = await asyncio.gather(*[aqc.q(i % args.queues) for i in range(args.writers or args.queues)])
+        for _ in range(args.packages or 1):
+            if bulk_tx:
+                await asyncio.gather(*[w.put(msg_sample) for w in w_list])
+            else:
+                for w in w_list:
+                    await w.put(msg_sample)
+        await __sub_title(1)
+    if args.rx:  # 2. get
+        r_list = await asyncio.gather(*[aqc.q(i) for i in range(args.queues)])  # - readers
+        await asyncio.gather(*[r.get_all(args.packages) for r in r_list])
+        await __sub_title(2)
     # x. the end
-    m_count = await __counters()
-    s_count = sum(m_count)
-    LOGGER.info(f"3: m={_mem_used()}, t={round(time.time() - t0, 2)}, msgs={s_count}")
-    if s_count:
-        LOGGER.info(f"Msgs: {m_count}")
     await aqc.close()
 
 
-# == entry points ==
-def smain():
-    """Sync."""
-    stest(QSMC())
-    stest(QSDc())
-    stest(QSRc())  # remote: 'hostname'
-
-
-async def amain():
-    """Async entry point."""
-    await atest(QAMc())
-    await atest(QAR1c())  # remote: 'amqp://hostname'
-    await atest(QAR2c())  # remote: as above
+# == entry point ==
+def main():
+    parser = mk_args_parser(tuple(NGINS.keys()))
+    args = parser.parse_args(sys.argv[1:])
+    if not (args.tx or args.rx):
+        parser.error("No tx nor rx")
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, stream=sys.stdout)
+    # TODO: uniq q list
+    q_list: List[Qc] = []
+    for key in args.ngin:
+        value = NGINS[key]
+        if not isinstance(value, tuple):
+            value = (value,)
+        for q in value:
+            if q not in q_list:
+                q_list.append(q)
+    # Go
+    loop = asyncio.get_event_loop()
+    for q in q_list:
+        if q.a:
+            loop.run_until_complete(atest(q(), args))
+        else:
+            stest(q(), args)
+    loop.close()
 
 
 if __name__ == '__main__':
-    LOGGER.setLevel(logging.DEBUG)
-    smain()
-    asyncio.run(amain())
+    main()

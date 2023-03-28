@@ -36,6 +36,7 @@ class Qc:
     """Queue Container base class.
      Provides Qs uniqueness.
      """
+    a: bool  # True if async
     title: str = "Queue (base)"
     _child_cls: Type[Q]
     _store: Dict[int, Q]
@@ -71,7 +72,7 @@ class QS(Q, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_all(self):
+    def get_all(self, count: int = 0) -> int:
         """Clean query."""
         raise NotImplementedError()
 
@@ -135,7 +136,7 @@ class QA(Q, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_all(self):
+    async def get_all(self, count: int = 0) -> int:
         """Get all message."""
         raise NotImplementedError()
 
