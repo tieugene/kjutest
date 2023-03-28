@@ -4,6 +4,7 @@
 - RabbitMQ-/disk-/memory-based.
 - K(10) queues × L(10..1000) writers × M(10) readers/writers × N(1...1000) messages (128 bytes)
 """
+import argparse
 import sys
 from typing import List, Tuple, Union, Dict
 import time
@@ -13,7 +14,6 @@ import asyncio
 import psutil
 # 3. local
 # from . import ...  # not works for main.py
-from const import Q_COUNT, W_COUNT, MSG_COUNT, R_COUNT, MSG
 from kjutest.cli import mk_args_parser
 from kjutest.ngin.base import QS, Qc, QSc, QAc
 from kjutest.ngin.qsm import QSMc
@@ -43,31 +43,32 @@ def _mem_used() -> int:
     return round(psutil.Process().memory_info().rss / (1 << 20))
 
 
-def _title(qc: Qc):
-    logging.info(f"== {qc.title} {W_COUNT} w @ {Q_COUNT} q × {MSG_COUNT} m ==")
+def _title(qc: Qc, args: argparse.Namespace):
+    logging.info(f"== {qc.title} {args.writers} w @ {args.queues} q × {args.packages} m ==")
 
 
 # == Sync ==
-def stest(sqc: QSc, tx: bool, rx: bool):
+def stest(sqc: QSc, args: argparse.Namespace):
     """Sync test of the engine."""
     def __sub_title(__no: int):
-        __m_count = [sqc.q(__i).count() for __i in range(Q_COUNT)]
+        __m_count = [sqc.q(__i).count() for __i in range(args.queues)]
         __s_count = sum(__m_count)
         logging.info(f"{__no}: m={_mem_used()}, t={round(time.time() - t0, 1)}, msgs={__s_count}")
 
-    _title(sqc)
-    sqc.open(Q_COUNT)
+    _title(sqc, args)
+    msg_sample = b'\x00' * args.size
+    sqc.open(args.queues)
     t0 = time.time()
     __sub_title(0)
-    if tx:  # 1. put
-        w_list: List[QS] = [sqc.q(i % Q_COUNT) for i in range(W_COUNT)]  # - writers
+    if args.tx:  # 1. put
+        w_list: List[QS] = [sqc.q(i % args.queues) for i in range(args.writers)]  # - writers
         # 1. put
         for w in w_list:
-            for _ in range(MSG_COUNT):
-                w.put(MSG)
+            for _ in range(args.packages):
+                w.put(msg_sample)
         __sub_title(1)
-    if rx:  # 2. get
-        r_list: List[QS] = [sqc.q(i % Q_COUNT) for i in range(R_COUNT)]  # - readers
+    if args.rx:  # 2. get
+        r_list: List[QS] = [sqc.q(i) for i in range(args.queues)]  # - readers
         for r in r_list:
             r.get_all()
             # for _ in r:
@@ -78,13 +79,13 @@ def stest(sqc: QSc, tx: bool, rx: bool):
 
 
 # == async ==
-async def atest(aqc: QAc, tx: bool, rx: bool, bulk_tx=True):
+async def atest(aqc: QAc, args: argparse.Namespace, bulk_tx=True):
     """Async.
     :todo: bulk_rx=True
     """
 
     async def __counters() -> Tuple[int]:
-        __qs = await asyncio.gather(*[aqc.q(i) for i in range(Q_COUNT)])
+        __qs = await asyncio.gather(*[aqc.q(i) for i in range(args.queues)])
         __count = await asyncio.gather(*[__q.count() for __q in __qs])
         return tuple(map(int, __count))
 
@@ -93,21 +94,22 @@ async def atest(aqc: QAc, tx: bool, rx: bool, bulk_tx=True):
         __s_count = sum(__m_count)
         logging.info(f"{__no}: m={_mem_used()}, t={round(time.time() - t0, 1)}, msgs={__s_count}")
 
-    _title(aqc)
-    await aqc.open(Q_COUNT)
+    _title(aqc, args)
+    msg_sample = b'\x00' * args.size
+    await aqc.open(args.queues)
     t0 = time.time()
     await __sub_title(0)
-    if tx:  # 1. put (MSG_COUNT times all the writers)
-        w_list = await asyncio.gather(*[aqc.q(i % Q_COUNT) for i in range(W_COUNT)])  # - writers
-        for _ in range(MSG_COUNT):
+    if args.tx:  # 1. put (MSG_COUNT times all the writers)
+        w_list = await asyncio.gather(*[aqc.q(i % args.queues) for i in range(args.writers)])  # - writers
+        for _ in range(args.packages):
             if bulk_tx:
-                await asyncio.gather(*[w.put(MSG) for w in w_list])
+                await asyncio.gather(*[w.put(msg_sample) for w in w_list])
             else:
                 for w in w_list:
-                    await w.put(MSG)
+                    await w.put(msg_sample)
         await __sub_title(1)
-    if rx:  # 2. get
-        r_list = await asyncio.gather(*[aqc.q(i % Q_COUNT) for i in range(R_COUNT)])  # - readers
+    if args.rx:  # 2. get
+        r_list = await asyncio.gather(*[aqc.q(i) for i in range(args.queues)])  # - readers
         await asyncio.gather(*[r.get_all() for r in r_list])
         await __sub_title(2)
     # x. the end
@@ -148,9 +150,9 @@ def main():
     loop = asyncio.get_event_loop()
     for q in q_list:
         if q.a:
-            loop.run_until_complete(atest(q(), args.tx, args.rx))
+            loop.run_until_complete(atest(q(), args))
         else:
-            stest(q(), args.tx, args.rx)
+            stest(q(), args)
     loop.close()
     # smain()
     # asyncio.run(amain())
