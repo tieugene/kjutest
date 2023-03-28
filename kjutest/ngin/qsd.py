@@ -29,7 +29,7 @@ class _QSD(QS):
     def get(self, wait: bool = True) -> bytes:
         return self.__q.pop()
 
-    def get_all(self):
+    def get_all(self, count: int = 0):
         while self.__q.pop():
             ...
 

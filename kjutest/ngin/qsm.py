@@ -32,7 +32,7 @@ class _QSM(QS):
         except queue.Empty:
             return None
 
-    def get_all(self):
+    def get_all(self, count: int = 0):
         try:
             while self.__q.get(block=False):
                 ...

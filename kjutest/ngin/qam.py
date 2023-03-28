@@ -37,7 +37,7 @@ class _QAM(QA):
             except asyncio.QueueEmpty:
                 return None
 
-    async def get_all(self):
+    async def get_all(self, count: int = 0):
         ret = True
         while ret:
             ret = await self.get(False)

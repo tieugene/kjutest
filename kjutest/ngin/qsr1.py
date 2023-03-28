@@ -40,7 +40,7 @@ class _QSR(QS):
         if method:  # not None?
             return body
 
-    def get_all(self):
+    def get_all(self, count: int = 0):
         while self.get():
             ...
 
