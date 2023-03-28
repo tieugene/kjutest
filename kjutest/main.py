@@ -6,6 +6,7 @@
 """
 import argparse
 import sys
+from dataclasses import dataclass
 from typing import List, Tuple, Union, Dict
 import time
 import logging
@@ -44,7 +45,7 @@ def _mem_used() -> int:
 
 
 def _title(qc: Qc, args: argparse.Namespace):
-    logging.info(f"== {qc.title} {args.writers} w @ {args.queues} q × {args.packages} m ==")
+    logging.info(f"== {qc.title} {args.writers or args.queues} w @ {args.queues} q × {args.packages} m ==")
 
 
 # == Sync ==
@@ -61,7 +62,7 @@ def stest(sqc: QSc, args: argparse.Namespace):
     t0 = time.time()
     __sub_title(0)
     if args.tx:  # 1. put
-        w_list: List[QS] = [sqc.q(i % args.queues) for i in range(args.writers)]  # - writers
+        w_list: List[QS] = [sqc.q(i % args.queues) for i in range(args.writers or args.queues)]  # - writers
         # 1. put
         for w in w_list:
             for _ in range(args.packages):
@@ -100,7 +101,7 @@ async def atest(aqc: QAc, args: argparse.Namespace, bulk_tx=True):
     t0 = time.time()
     await __sub_title(0)
     if args.tx:  # 1. put (MSG_COUNT times all the writers)
-        w_list = await asyncio.gather(*[aqc.q(i % args.queues) for i in range(args.writers)])  # - writers
+        w_list = await asyncio.gather(*[aqc.q(i % args.queues) for i in range(args.writers or args.queues)])
         for _ in range(args.packages):
             if bulk_tx:
                 await asyncio.gather(*[w.put(msg_sample) for w in w_list])
