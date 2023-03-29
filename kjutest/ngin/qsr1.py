@@ -41,14 +41,12 @@ class _QSR(QS):
         if method:  # not None?
             return body
 
-    def _get_all_v1(self, count: int = 0) -> int:
+    def get_all(self, count: int = 0) -> int:
         """Get all messages.
         v.1: Simple non-blocking."""
         __counter: int = 0
-        while self.get():
+        while self.get() and (count == 0 or (__counter+1) < count):
             __counter += 1
-            if count and __counter == count:
-                break
         return __counter
 
     def _get_all_v2(self, count: int = 0) -> int:
@@ -65,9 +63,9 @@ class _QSR(QS):
                     self._master.chan.stop_consuming()  # or self._master.chan.cancel()
         return count
 
-    def get_all(self, count: int = 0) -> int:
+    def _get_all_v3(self, count: int = 0) -> int:
         """Get all messages.
-        v.3: Reference Consuming.
+        v.3: Reference consuming.
         """
         def __consumer(
                 _: pika.adapters.blocking_connection.BlockingChannel,  # channel
