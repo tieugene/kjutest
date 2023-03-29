@@ -41,7 +41,9 @@ class _QSR(QS):
         if method:  # not None?
             return body
 
-    def get_all(self, count: int = 0) -> int:
+    def _get_all_v1(self, count: int = 0) -> int:
+        """Get all messages.
+        v.1: Simple non-blocking."""
         __counter: int = 0
         while self.get():
             __counter += 1
@@ -49,19 +51,43 @@ class _QSR(QS):
                 break
         return __counter
 
+    def _get_all_v2(self, count: int = 0) -> int:
+        """Get all messages.
+        v.2: Reference consuming+iteration
+        """
+        if count > (__real_count := self.count()) or not count:
+            count = __real_count  # hack against forever __consumer; plan b: timeout
+        if count:
+            # method, properties, body
+            for meth, _, ___ in self._master.chan.consume(self._q_name, auto_ack=False):
+                self._master.chan.basic_ack(delivery_tag=meth.delivery_tag)
+                if meth.delivery_tag == count:
+                    self._master.chan.stop_consuming()  # or self._master.chan.cancel()
+        return count
+
+    def get_all(self, count: int = 0) -> int:
+        """Get all messages.
+        v.3: Reference Consuming.
+        """
+        def __consumer(
+                _: pika.adapters.blocking_connection.BlockingChannel,  # channel
+                meth: pika.spec.Basic.Deliver,  # method
+                __: pika.spec.BasicProperties,  # properties
+                ___: bytes  # body
+        ):
+            nonlocal count
+            self._master.chan.basic_ack(delivery_tag=meth.delivery_tag)  # multiple= no matter
+            if meth.delivery_tag == count:
+                self._master.chan.stop_consuming()
+        if count > (__real_count := self.count()) or not count:
+            count = __real_count  # hack against forever __consumer
+        if count:
+            self._master.chan.basic_consume(self._q_name, __consumer, auto_ack=False)  # auto_asc=True purge queue anyway
+            self._master.chan.start_consuming()  # wait until __consumer ends
+        return count
+
     def close(self):
         ...
-
-    '''
-    def __get_all_freeze(self):
-        """Bsd implementation (requires strict counter)"""
-        count = self.count()
-        # method, properties, body
-        for _, __, ___ in self._master.chan.consume(self._q_name, auto_ack=True):
-            count -= 1
-            if not count:
-                self._master.chan.cancel()
-    '''
 
 
 class QSRc(QSc):
