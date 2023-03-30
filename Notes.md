@@ -1,125 +1,95 @@
 # Notes
 
-## So:
+## Resume:
 
 Speed of pkgs r/w, pkgs/s (localhost):
 
-S/A| Engine         | Write | Read
----|----------------|-----:|------:
- S | stdlib         | &infin; | &infin;
- A | stdlib         | 50k…1M | 1M…&infin;
- S | `queuelib`     | 100k+ | 200k+
- S | `persistqueue` | 2000 | ?
- S | `pika`         | 250 | 2000
- A | `qiomrq`       | 300…1000 | 1000…2500
- A | `aio-pika`     | 250…1000 | 200…fail
+S/A| Engine     | Write | Read
+---|------------|------:|------:
+ S | stdlib     |&infin;|&infin;
+ A | stdlib     |   75k | 1M
+ S | `queuelib` |  100k | 200k
+ S | `pika`     |   250 | 2000
+ A | `qiomrq`   |  2000 | 3700
+ A | `aio-pika` |  1500 | 2500
 
-## Resume:
-- stdlib: exactly good, but not persistent
-- ~~`persistqueue`: slow write, buggy~~, handy
+- stdlib: exactly good, not persistent
 - `pika`: slow write/fast read, steady, handy
 - `aiomrq`: fast, steady, ~~stupid~~ simple
-- ~~`aio-pika`: slow read, fallable, handy~~
-
-## RQ memo:
-- default exchange == routing key
-- routing key != queue
-- connection timeout not depend on activity, &asymp;20 min
-- Resume:
-
-## Dependencies:
-
-gmr/pamqp -> {gmr/rabbitpy,gmr/aiorabbit}
-gmr/pamqp -> mosquito/aiormq -> mosquito/aio-pika
-
-## QARx tests:
-
-- 1 conn/1 chan == 1 conn/N chan == N conn/N chan (but last can fail)
-- sequenced slower than bulk for 3..4 times
+- `aio-pika`: slower, ~~fallable~~ works, handy
 
 ## Tests
 
-20230325, macOS, 1k writers @ 100 queues &times;&hellip;
+20230330, macOS, RQ: callbacks, 1k writers @ 10 queues &times;&hellip;
 
 ### 'Low' profile:
 
 &hellip;&times; 10 msg (10k msg total)
 
-Type| Time | Note
-----|-----:|------
-QSM |    0 | stdlib
-QSD |    0 | `queuelib`
-QSD2|  5…5 | `persistqueue`, bulk read
-QSR |33…36 | `pika`
-QAM |    0 | stdlib
-QAR1| 6…14 | `qiomrq`
-QAR2| 7…21 | `aio-pika`
+Type| W  | R | Note
+----|---:|--:|------
+QSM |  0 | 0 | stdlib
+QSD |  0 | 0 | `queuelib`
+QSR | 34 | 5 | `pika`
+QAM |  0 | 0 | stdlib
+QAR1|  6 | 4 | `qiomrq`
+QAR2|  6 | 4 | `aio-pika`
 
 ### 'Mid' profile:
 
 &hellip;&times; 100 msg (100k msg total)
 
-Type| Time,s| Note
-----|------:|------
-QSM |     0 | stdlib
-QSD |   1…1 | `queuelib`
-QSD2| 51…51 | `persistqueue`, bulk read
-QSR |408…450| `pika`
-QAM |   2…2 | stdlib
-QAR1|80…255 | `qiomrq`
-QAR2|116…t/o[^t]| `aio-pika`
+Type| W   | R  | Note
+----|----:|---:|---
+QSM |   0 |  0 | stdlib
+QSD |   1 |  1 | `queuelib`
+QSR | 398 | 46 | `pika`
+QAM |   2 |  0 | stdlib
+QAR1|  54 | 27 | `qiomrq`
+QAR2|  67 | 41 | `aio-pika`
 
-### 'High' profile:
+### 'Max' profile:
 
-&hellip;&times; 1000 msg (1000k msg total)
+&hellip;&times; 1000 msg (1M msg total)
 
-Type| Time,s  | Note
-----|--------:|------
-QSM |       0 | stdlib
-QSD |    8…13 | `queuelib`
-QSD2|  630…640| `persistqueue`, bulk read
-QSR |4489…4957| `pika`
-QAM |   17…18 | stdlib
-QAR1|1101…2234| `qiomrq`
-QAR2|1265…t/o| `aio-pika`
+Type| W  | R | Note
+----|---:|--:|---
+QSM |  0 | 0 | stdlib
+QSD |  9 | 5 | `queuelib`
+QAM | 13 | 1 | stdlib
 
 ### Local/Remote
 
-(Short, s)
-
-Type| Local | Remote
-----|------:|--------:
-QSR | 33…40 | 781…1147
-QAR1|  8…20 |   11…402
-QAR2|  8…27 |  14…fail
+*TODO*
 
 ## Linux:
 
-(Mid)
+*TODO*
 
-note: `Default tempdir '/tmp/tmpv4p3vdhy' is not on the same filesystem with queue path '_d2sd/0000',defaulting to '_d2sd/0000'.`
-note: something strange w/ rabbit if not in `/var/lib`:
-`/usr/sbin/rabbitmqctl: строка 47: cd: /var/lib/rabbitmq: Отказано в доступе`
+## Memo
 
-Type| Time,s  | Note
-----|--------:|------
-QSM |       0 | stdlib
-QSD |       0 | `queuelib`
-QSD2|   45…45 | `persistqueue`, bulk read
-QSR | &infin; | `pika`
-QAM |     1…1 | stdlib
-QAR1| 352…394 | `qiomrq`
-QAR2| 360…418 | `aio-pika`
+### RQ:
+- default exchange == routing key
+- routing key != queue
+- connection timeout not depend on activity, &asymp;20 min
 
-## Create queues
+### Dependencies:
+
+gmr/pamqp -> {~~gmr/rabbitpy~~,~~gmr/aiorabbit~~}
+gmr/pamqp -> mosquito/aiormq -> mosquito/aio-pika
+
+### QARx tests:
+
+- 1 conn/1 chan == 1 conn/N chan == N conn/N chan (but last can fail)
+- sequenced slower than bulk for 3..4 times
+
+### Create queues
 
 ```py
 import pika
 conn = pika.BlockingConnection(pika.ConnectionParameters())  # ([host='<host>']))
 chan = conn.channel()
-[chan.queue_declare(queue=f"{i:04d}", durable=True) for i in range(100)]
+[chan.queue_declare(queue=str(i), durable=True) for i in range(10)]
 chan.close()
 conn.close()
 ```
-
-[^t]: `exceptions.TimeoutError()`

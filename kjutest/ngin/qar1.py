@@ -1,6 +1,8 @@
 """Queue Async RabbitMQ #1.
 Powered by [aiormq](https://github.com/mosquito/aiormq)
 """
+import asyncio
+import logging
 from typing import Optional
 # 2. 3rd
 import aiormq
@@ -37,16 +39,52 @@ class _QAR1(QA):
         if rsp := await self._master.chan.basic_get(self._q_name, no_ack=True):
             return rsp.body
 
-    async def get_all(self, count: int = 0) -> int:
-        __counter: int = 0
-        while await self.get():
-            __counter += 1
-            if count and __counter == count:
-                break
-        return __counter
-
     async def close(self):
         ...
+
+    async def _get_all_v1(self, count: int = 0) -> int:
+        """Get all packages.
+        v.1: Simple (non-blocking).
+        """
+        __counter: int = 0
+        while (await self.get()) and (count == 0 or (__counter+1) < count):
+            __counter += 1
+        return __counter
+
+    async def get_all(self, count: int = 0) -> int:
+        """Get all packages.
+        v.2: Reference consiming (blocking).
+        """
+        async def __consumer(msg: aiormq.abc.DeliveredMessage):
+            """Notes:
+            - msg.routing_key == self.__q_name
+            - msg.consumer_tag == basic_consume(consumer_tag=)
+            - msg.message_count == None
+            - msg.delivery_tag incrementing through _all_ of queues
+            """
+            nonlocal count, __counter, count, __lock, __ready
+            async with __lock:
+                __counter += 1
+                if __counter < count:  # continue
+                    await self._master.chan.basic_ack(delivery_tag=msg.delivery.delivery_tag)
+                elif __counter == count:  # enought
+                    await self._master.chan.basic_cancel(consumer_tag=msg.consumer_tag)
+                    await self._master.chan.basic_ack(delivery_tag=msg.delivery.delivery_tag)
+                    __ready.set()
+                else:  # extra packages
+                    await self._master.chan.basic_reject(delivery_tag=msg.delivery.delivery_tag)
+                    logging.warning(f"Queue {self._q_name}: extra pkg #{__counter}")
+        if count > (__real_count := await self.count()) or not count:
+            count = __real_count
+        if count:
+            __counter: int = 0
+            __lock: asyncio.Lock = asyncio.Lock()
+            __ready: asyncio.Event = asyncio.Event()
+            # defaults: no_ack=False, consumer_tag=<auto>
+            await self._master.chan.basic_consume(queue=self._q_name, consumer_callback=__consumer)
+            # -> pamqp.commands.Basic.ConsumeOk
+            await __ready.wait()
+        return count
 
 
 class QAR1c(QAc):

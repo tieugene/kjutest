@@ -41,31 +41,31 @@ class _QSR(QS):
         if method:  # not None?
             return body
 
-    def get_all(self, count: int = 0) -> int:
+    def close(self):
+        ...
+
+    def _get_all_v1(self, count: int = 0) -> int:
         """Get all messages.
-        v.1: Simple non-blocking."""
+        v.1: Simple (non-blocking).
+        """
         __counter: int = 0
         while self.get() and (count == 0 or (__counter+1) < count):
             __counter += 1
         return __counter
 
-    def _get_all_v2(self, count: int = 0) -> int:
-        """Get all messages.
-        v.2: Reference consuming+iteration
-        """
-        if count > (__real_count := self.count()) or not count:
-            count = __real_count  # hack against forever __consumer; plan b: timeout
-        if count:
-            # method, properties, body
-            for meth, _, ___ in self._master.chan.consume(self._q_name, auto_ack=False):
-                self._master.chan.basic_ack(delivery_tag=meth.delivery_tag)
-                if meth.delivery_tag == count:
-                    self._master.chan.stop_consuming()  # or self._master.chan.cancel()
-        return count
+    def __consume(self, cnt_now: int, cnt_max: int, msg: pika.spec.Basic.Deliver):
+        if cnt_now < cnt_max:  # continue
+            self._master.chan.basic_ack(delivery_tag=msg.delivery_tag)
+        elif cnt_now == cnt_max:  # enough
+            self._master.chan.stop_consuming()  # TODO: add consuming_Tag
+            self._master.chan.basic_ack(delivery_tag=msg.delivery_tag)
+        else:  # extra
+            self._master.chan.basic_reject(delivery_tag=msg.delivery_tag)
+            logging.warning(f"Queue {self._q_name}: extra pkg #{cnt_now}")
 
-    def _get_all_v3(self, count: int = 0) -> int:
+    def get_all(self, count: int = 0) -> int:
         """Get all messages.
-        v.3: Reference consuming.
+        v.2: Reference consuming (blocking).
         """
         def __consumer(
                 _: pika.adapters.blocking_connection.BlockingChannel,  # channel
@@ -73,19 +73,31 @@ class _QSR(QS):
                 __: pika.spec.BasicProperties,  # properties
                 ___: bytes  # body
         ):
-            nonlocal count
-            self._master.chan.basic_ack(delivery_tag=meth.delivery_tag)  # multiple= no matter
-            if meth.delivery_tag == count:
-                self._master.chan.stop_consuming()
+            nonlocal count, __counter
+            __counter += 1
+            self.__consume(__counter, count, meth)
         if count > (__real_count := self.count()) or not count:
-            count = __real_count  # hack against forever __consumer
+            count = __real_count
         if count:
-            self._master.chan.basic_consume(self._q_name, __consumer, auto_ack=False)  # auto_asc=True purge queue anyway
+            __counter: int = 0
+            # note: auto_asc=True purges queue anyway
+            self._master.chan.basic_consume(self._q_name, __consumer, auto_ack=False)  # -> ctag:str
             self._master.chan.start_consuming()  # wait until __consumer ends
         return count
 
-    def close(self):
-        ...
+    def _get_all_v3(self, count: int = 0) -> int:
+        """Get all messages.
+        v.3: Reference iteration consuming (blocking)
+        """
+        if count > (__real_count := self.count()) or not count:
+            count = __real_count  # hack against forever __consumer; plan b: timeout
+        if count:
+            __counter: int = 0
+            # method, properties, body
+            for meth, _, ___ in self._master.chan.consume(self._q_name, auto_ack=False):
+                __counter += 1
+                self.__consume(__counter, count, meth)
+        return count
 
 
 class QSRc(QSc):

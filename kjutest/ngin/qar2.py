@@ -1,6 +1,8 @@
 """Queue Async RabbitMQ #2.
 Powered by [aio-pika](https://github.com/mosquito/aio-pika)
 """
+import asyncio
+import logging
 from typing import Optional
 # 2. 3rd
 import aio_pika
@@ -41,26 +43,67 @@ class _QAR2(QA):
         if msg:
             return msg.body
 
-    async def get_all(self, count: int = 0) -> int:
-        __counter: int = 0
-        while await self.get():
-            __counter += 1
-            if count and __counter == count:
-                break
-        return __counter
-
     async def close(self):
         ...
 
-    '''
-    async def __get_all_freeze(self):
-        async with self.__q.iterator() as q_iter:
-            # FIXME: Cancel consuming after __aexit__
-            async for msg in q_iter:
-                async with msg.process():
-                    print(f"Msg of {self._q_name}")
-                    # if msg.count == 0: break
-    '''
+    async def _get_all_v1(self, count: int = 0) -> int:
+        """Get all packages.
+        v.1: Simple (non-blocking).
+        """
+        __counter: int = 0
+        while (await self.get()) and (count == 0 or (__counter+1) < count):
+            __counter += 1
+        return __counter
+
+    async def get_all(self, count: int = 0) -> int:
+        """Get all messages.
+        v.2: Reference consuming (blocking)
+        """
+        async def __consumer(msg: aio_pika.abc.AbstractIncomingMessage):
+            nonlocal count, __counter, count, __lock, __ready
+            async with __lock:
+                __counter += 1
+                async with msg.process(ignore_processed=True):
+                    if __counter < count:  # continue
+                        await msg.ack()
+                    elif __counter == count:  # enought
+                        await self.__q.cancel(msg.consumer_tag)
+                        await msg.ack()
+                        __ready.set()
+                    else:  # extra packages
+                        await msg.reject()
+                        logging.warning(f"Queue {self._q_name}: extra pkg #{__counter}")
+        if count > (__real_count := await self.count()) or not count:
+            count = __real_count
+        if count:
+            __counter: int = 0
+            __lock: asyncio.Lock = asyncio.Lock()
+            __ready: asyncio.Event = asyncio.Event()
+            await self.__q.consume(__consumer, no_ack=False)  # -> ctag:str
+            await __ready.wait()
+        return count
+
+    async def __get_all_v3_dont_use_it(self, count: int = 0) -> int:
+        """Get all messages.
+        v.3: Reference iteration consuming (blocking _forever_)
+        Resume: феерчиеская хрень. Freeze forever
+        """
+        if count > (__real_count := await self.count()) or not count:
+            count = __real_count
+        if count:
+            __counter: int = 0
+            async with self.__q.iterator() as q_iter:
+                async for msg in q_iter:
+                    __counter += 1
+                    async with msg.process(ignore_processed=True):
+                        if __counter < count:  # continue
+                            await msg.ack()
+                        elif __counter == count:
+                            await self.__q.cancel(msg.consumer_tag)
+                            await msg.ack()
+                        else:
+                            await msg.reject()
+        return count
 
 
 class QAR2c(QAc):

@@ -35,7 +35,7 @@ NGINS: Dict[str, Union[Qc, Tuple]] = {
     'r': (QSRc, QAR1c, QAR2c),  # rebbit
     's': (QSMc, QSDc, QSRc),  # sync
     'a': (QAMc, QAR1c, QAR2c),  # async
-    '*': (QSMc, QSDc, QSRc, QAMc, QAR1c, QAR2c)  # all
+    'all': (QSMc, QSDc, QSRc, QAMc, QAR1c, QAR2c)  # all
 }
 
 
@@ -68,10 +68,11 @@ def stest(sqc: QSc, args: argparse.Namespace):
             for _ in range(args.packages or 1):
                 w.put(msg_sample)
         __sub_title(1)
+        t0 = time.time()  # reset timer
     if args.rx:  # 2. get
         r_list: List[QS] = [sqc.q(i) for i in range(args.queues)]  # - readers
         for r in r_list:
-            r.get_all(args.packages)
+            r.get_all(0 if args.tx else args.packages)
         __sub_title(2)
     # x. the end
     sqc.close()
@@ -107,9 +108,10 @@ async def atest(aqc: QAc, args: argparse.Namespace, bulk_tx=True):
                 for w in w_list:
                     await w.put(msg_sample)
         await __sub_title(1)
+        t0 = time.time()  # reset timer
     if args.rx:  # 2. get
         r_list = await asyncio.gather(*[aqc.q(i) for i in range(args.queues)])  # - readers
-        await asyncio.gather(*[r.get_all(args.packages) for r in r_list])
+        await asyncio.gather(*[r.get_all(0 if args.tx else args.packages) for r in r_list])
         await __sub_title(2)
     # x. the end
     await aqc.close()
@@ -117,6 +119,9 @@ async def atest(aqc: QAc, args: argparse.Namespace, bulk_tx=True):
 
 # == entry point ==
 def main():
+    async def __a_stub(__q_list: List):
+        for __q in __q_list:
+            await atest(__q(), args)
     parser = mk_args_parser(tuple(NGINS.keys()))
     args = parser.parse_args(sys.argv[1:])
     if not (args.tx or args.rx):
@@ -132,13 +137,8 @@ def main():
             if q not in q_list:
                 q_list.append(q)
     # Go
-    loop = asyncio.get_event_loop()
-    for q in q_list:
-        if q.a:
-            loop.run_until_complete(atest(q(), args))
-        else:
-            stest(q(), args)
-    loop.close()
+    [stest(q(), args) for q in q_list if not q.a]
+    asyncio.run(__a_stub([q for q in q_list if q.a]))
 
 
 if __name__ == '__main__':
